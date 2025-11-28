@@ -1,0 +1,64 @@
+name: CI/CD Sales Service
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+  IMAGE_SALES: examen/sales 
+
+jobs:
+  build-and-deploy:
+    name: Build & Push Sales
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del codigo
+        uses: actions/checkout@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build & Push Sales
+        run: |
+          docker build -t $ECR_REGISTRY/$IMAGE_SALES:latest .
+          docker push $ECR_REGISTRY/$IMAGE_SALES:latest
+          
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            # 1. Cargar credenciales en la sesión
+            export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            export AWS_SESSION_TOKEN=${{ secrets.AWS_SESSION_TOKEN }}
+            export AWS_REGION=us-east-1
+            
+            # 2. Ir a la carpeta y crear/actualizar .env
+            cd /home/ec2-user/examen-final
+            echo "--- Generando .env ---"
+            echo "NODE_ENV=PRODUCTION" > .env
+            
+            # 3. INYECTAR VARIABLES CRÍTICAS
+            echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env
+            echo "S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}" >> .env
+            echo "SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }}" >> .env
+            echo "SQS_QUEUE_URL=${{ secrets.SQS_QUEUE_URL }}" >> .env
+            # Nota: Las credenciales de AWS ya están en la sesión para el login
+            
+            # 4. Login ECR y Despliegue (solo el servicio de ventas)
+            aws ecr get-login-password --region $AWS_REGION | \
+            docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+
+            docker-compose pull sales
+            docker-compose up -d --no-deps sales
