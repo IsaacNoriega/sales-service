@@ -5,6 +5,7 @@ on:
     branches: [ "main" ]
 
 env:
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
   IMAGE_SALES: examen/sales 
 
 jobs:
@@ -12,7 +13,7 @@ jobs:
     name: Build & Push Sales
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout del codigo
         uses: actions/checkout@v4
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -26,10 +27,8 @@ jobs:
 
       - name: Build & Push Sales
         run: |
-          DOCKER_REGISTRY=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
-          
-          docker build -t $DOCKER_REGISTRY/${{ env.IMAGE_SALES }}:latest .
-          docker push $DOCKER_REGISTRY/${{ env.IMAGE_SALES }}:latest
+          docker build -t $ECR_REGISTRY/$IMAGE_SALES:latest .
+          docker push $ECR_REGISTRY/$IMAGE_SALES:latest
           
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v0.1.7
