@@ -64,7 +64,6 @@ const generarYSubirPDF = async (ventaData, ventaId) => {
             }
         });
 
-        // Diseño simple del PDF
         doc.fontSize(20).text('NOTA DE VENTA', { align: 'center' });
         doc.moveDown();
         doc.fontSize(14).text(`Folio: ${ventaData.folio || ventaId}`);
@@ -86,7 +85,7 @@ const generarYSubirPDF = async (ventaData, ventaId) => {
     });
 };
 
-// Post para crear una venta
+// Post venta
 app.post('/ventas', async (req, res) => {
     const start = Date.now();
     try {
