@@ -5,7 +5,6 @@ on:
     branches: [ "main" ]
 
 env:
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
   IMAGE_SALES: examen/sales 
 
 jobs:
@@ -13,7 +12,7 @@ jobs:
     name: Build & Push Sales
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout del codigo
+      - name: Checkout code
         uses: actions/checkout@v4
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -27,8 +26,10 @@ jobs:
 
       - name: Build & Push Sales
         run: |
-          docker build -t $ECR_REGISTRY/$IMAGE_SALES:latest .
-          docker push $ECR_REGISTRY/$IMAGE_SALES:latest
+          DOCKER_REGISTRY=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+          
+          docker build -t $DOCKER_REGISTRY/${{ env.IMAGE_SALES }}:latest .
+          docker push $DOCKER_REGISTRY/${{ env.IMAGE_SALES }}:latest
           
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v0.1.7
@@ -54,7 +55,6 @@ jobs:
             echo "S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}" >> .env
             echo "SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }}" >> .env
             echo "SQS_QUEUE_URL=${{ secrets.SQS_QUEUE_URL }}" >> .env
-            # Nota: Las credenciales de AWS ya están en la sesión para el login
             
             # 4. Login ECR y Despliegue (solo el servicio de ventas)
             aws ecr get-login-password --region $AWS_REGION | \
